@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Gaia Pricing Simulator</title>
+  <style>
+    body { margin: 0; font-family: "Segoe UI", Helvetica, Arial, sans-serif; color: #1c2128; background: #f6f8fa; }
+    main { max-width: 420px; margin: 12vh auto; background: #fff; border: 1px solid #d8dee4; border-radius: 10px; padding: 24px; }
+    h1 { font-size: 22px; margin: 0 0 8px; }
+    p { font-size: 14px; line-height: 1.45; color: #4b5563; }
+    label { display: block; font-size: 12px; margin-bottom: 6px; }
+    input { width: 100%; box-sizing: border-box; height: 36px; border: 1px solid #d0d7de; border-radius: 6px; padding: 0 10px; font-size: 14px; }
+    button { margin-top: 12px; height: 36px; border: 0; border-radius: 6px; background: #0b5fff; color: #fff; padding: 0 14px; font-size: 14px; cursor: pointer; }
+    .err { color: #b42318; min-height: 1.2em; font-size: 13px; }
+    #app { display: none; padding: 16px 20px 48px; }
+  </style>
+</head>
+<body>
+  <main id="gate">
+    <h1>Gaia Pricing Simulator</h1>
+    <p>This page is confidential. Enter the password to open it.</p>
+    <form id="form">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" />
+      <div class="err" id="err"></div>
+      <button type="submit">Open</button>
+    </form>
+  </main>
+  <div id="app"><div id="root"></div></div>
+  <script>
+    const iterations = 250000;
+    const form = document.getElementById("form");
+    const err = document.getElementById("err");
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      err.textContent = "Checking the password…";
+      const password = new FormData(form).get("password");
+      try {
+        const response = await fetch("payload.enc");
+        if (!response.ok) throw new Error("missing");
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        const salt = bytes.slice(0, 16);
+        const iv = bytes.slice(16, 28);
+        const data = bytes.slice(28);
+        const material = await crypto.subtle.importKey("raw", new TextEncoder().encode(String(password)), "PBKDF2", false, ["deriveKey"]);
+        const key = await crypto.subtle.deriveKey(
+          { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+          material,
+          { name: "AES-GCM", length: 256 },
+          false,
+          ["decrypt"]
+        );
+        const plain = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, data);
+        const code = new TextDecoder().decode(plain);
+        const blob = new Blob([code], { type: "text/javascript" });
+        await import(URL.createObjectURL(blob));
+        document.getElementById("gate").style.display = "none";
+        document.getElementById("app").style.display = "block";
+        err.textContent = "";
+      } catch (error) {
+        err.textContent = "That password does not open this page.";
+      }
+    });
+  </script>
+</body>
+</html>
