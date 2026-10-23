@@ -38,7 +38,7 @@
       err.textContent = "Checking the password…";
       const password = new FormData(form).get("password");
       try {
-        const response = await fetch("payload.enc?v=20261023-y1cc");
+        const response = await fetch("payload.enc?v=20261023-y2ramp");
         if (!response.ok) throw new Error("missing");
         const bytes = new Uint8Array(await response.arrayBuffer());
         const salt = bytes.slice(0, 16);
